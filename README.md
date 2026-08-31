@@ -11,7 +11,16 @@ PAPower 是一个原生 macOS 菜单栏功耗监控原型。它会把当前功�
 - `PSTR` 不是插座侧功率，不包含电源适配器的转换损耗。需要精确测量墙上取电时，应使用 USB-C 或插座功率计。
 - macOS 不提供可靠的逐应用瓦数。弹窗中的“高活跃应用”会合并同一应用的 Helper 进程，并按近期 CPU 活跃度提供排查线索；它不是功率分摊结果。
 
-所有采样均在本机完成，不需要管理员权限，也不会联网。
+所有功耗采样均在本机完成，不需要管理员权限，也不会上传数据。只有用户主动点击
+“检查 GitHub 更新”时，应用才会访问 GitHub Releases 查询最新版本。
+
+## 从 GitHub 更新
+
+在菜单栏弹窗中点击“检查 GitHub 更新”，PAPower 会读取
+[`Kymorphius/PAPower` 的最新 Release](https://github.com/Kymorphius/PAPower/releases/latest)
+并与当前版本比较。发现新版本后，点击“前往下载”即可打开对应的 Release 页面。
+
+应用不会在后台自动检查或自动安装更新。
 
 ## 构建和运行
 
