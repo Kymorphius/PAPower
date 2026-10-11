@@ -5,9 +5,11 @@ import SwiftUI
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
+    private var trafficStatusBarController: TrafficStatusBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusBarController = StatusBarController(monitor: PowerMonitor())
+        trafficStatusBarController = TrafficStatusBarController(monitor: TrafficMonitor())
     }
 }
 

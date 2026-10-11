@@ -14,6 +14,24 @@ PAPower 是一个原生 macOS 菜单栏功耗监控原型。它会把当前功�
 所有功耗采样均在本机完成，不需要管理员权限，也不会上传数据。只有用户主动点击
 “检查 GitHub 更新”时，应用才会访问 GitHub Releases 查询最新版本。
 
+## 独立网络流量菜单栏
+
+应用同时提供一个独立的流量菜单栏项，两行分别显示代理与直连的下载／上传速度。
+点击可查看分类累计量、活动连接数、未归类流量，并清零本次监测累计。
+
+流量数据只读接入 local-manager 管理的 sing-box Clash API（默认回环地址），
+优先读取 `/Applications/local-manager/var/state/network/sing-box/runtime.json` 的控制器配置，
+不存在时使用 `10.network/20.sing-box/sing-box.json`。其他安装位置可通过
+`PAPOWER_LOCAL_MANAGER_ROOT` 环境变量指定。可选 API secret 只在内存中用于认证，
+不会写入用户设置或探针输出；应用不会修改或重启 local-manager。
+
+代理／直连根据活动连接实际出口的类型判断。全局字节增量作为总量，能归属的连接增量
+分入代理与直连，其余保留为“未归类”：采样间隔内关闭的连接、DNS 等数据不一定能完整归属。
+因此分类速度与累计量是采样统计，仅覆盖 local-manager 管理的连接，不能当作全机网卡流量
+或今日账单。累计从本次监测开始计算；服务失联期间不累计，重连／核心重启后重新建立基线。
+
+控制器的接口与认证方式见 [sing-box Clash API 文档](https://sing-box.sagernet.org/configuration/experimental/clash-api/)。
+
 ## 从 GitHub 更新
 
 在菜单栏弹窗中点击“检查 GitHub 更新”，PAPower 会读取
@@ -43,6 +61,12 @@ dist/PAPower.app/Contents/MacOS/PAPower --probe
 
 ```bash
 dist/PAPower.app/Contents/MacOS/PAPower --activity-probe
+```
+
+读取两次真实流量采样，输出代理／直连／未归类速度与本次累计；连接失败返回非零退出码：
+
+```bash
+dist/PAPower.app/Contents/MacOS/PAPower --traffic-probe
 ```
 
 ## 技术与分发边界
