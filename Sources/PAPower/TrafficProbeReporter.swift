@@ -14,7 +14,17 @@ enum TrafficProbeReporter {
                 let encoder = JSONEncoder()
                 encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
                 encoder.dateEncodingStrategy = .iso8601
-                FileHandle.standardOutput.write(try encoder.encode(samples))
+                // Keep the default diagnostic free of application paths and targets.
+                // The panel displays source names locally; the probe reports counts only.
+                let encoded = try encoder.encode(samples)
+                var payload = try JSONSerialization.jsonObject(with: encoded) as! [[String: Any]]
+                for index in payload.indices {
+                    payload[index].removeValue(forKey: "topSources")
+                    payload[index]["rankedSourceCount"] = samples[index].topSources.count
+                }
+                FileHandle.standardOutput.write(try JSONSerialization.data(
+                    withJSONObject: payload, options: [.prettyPrinted, .sortedKeys]
+                ))
                 FileHandle.standardOutput.write(Data("\n".utf8))
                 exit(EXIT_SUCCESS)
             } catch {

@@ -66,6 +66,8 @@ struct TrafficMenuBarContentView: View {
                 }
             }
 
+            highTrafficSources
+
             Divider()
             HStack {
                 Text("累计自 \(monitor.snapshot.monitoringSince.formatted(date: .omitted, time: .shortened)) 起")
@@ -97,6 +99,90 @@ struct TrafficMenuBarContentView: View {
 
     private var currentUnclassifiedRate: TrafficValues? {
         monitor.hasCurrentRates ? monitor.snapshot.unclassifiedRate : nil
+    }
+
+    private var highTrafficSources: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Text("高流量来源")
+                    .font(.caption.weight(.medium))
+                Spacer()
+                Text("实时 · 前 5 项")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            if !monitor.hasCurrentRates {
+                Text(monitor.diagnostic == nil ? "等待下一次采样…" : "流量接口恢复后更新排行")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 4)
+            } else if monitor.snapshot.topSources.isEmpty {
+                Text("当前没有可归属的活动流量")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 4)
+            } else {
+                HStack(spacing: 8) {
+                    Spacer()
+                    Text("↓ 下载").frame(width: 65, alignment: .trailing)
+                    Text("↑ 上传").frame(width: 65, alignment: .trailing)
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+                ScrollView {
+                    VStack(spacing: 7) {
+                        ForEach(monitor.snapshot.topSources.prefix(5)) { source in
+                            trafficSourceRow(source)
+                        }
+                    }
+                }
+                .frame(height: min(110, CGFloat(min(5, monitor.snapshot.topSources.count)) * 39 - 7))
+            }
+        }
+        .padding(10)
+        .background {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        }
+        .help("按当前下载与上传速度的合计排序；应用无法识别时显示目标域名或 IP。仅包含采样中能归属的活动连接。")
+    }
+
+    private func trafficSourceRow(_ source: TrafficSourceActivity) -> some View {
+        HStack(spacing: 8) {
+            Group {
+                if let path = source.applicationPath {
+                    Image(nsImage: TrafficSourceIconCache.shared.icon(for: path))
+                        .resizable()
+                        .scaledToFit()
+                } else {
+                    Image(systemName: source.kind == .process ? "terminal.fill" : "network")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 18, height: 18)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(source.name)
+                    .font(.caption.weight(.medium))
+                    .lineLimit(1)
+                Text("\(source.routeDescription) · \(source.connectionCount) 个连接")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(TrafficFormat.rate(source.rate.download))
+                .frame(width: 65, alignment: .trailing)
+            Text(TrafficFormat.rate(source.rate.upload))
+                .frame(width: 65, alignment: .trailing)
+        }
+        .font(.caption2.monospacedDigit())
+        .frame(height: 32)
+        .help("\(source.kindDescription)：\(source.detail)")
+        .accessibilityElement(children: .combine)
     }
 
     private var hasUnclassifiedTraffic: Bool {
@@ -148,5 +234,19 @@ struct TrafficMenuBarContentView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+@MainActor
+private final class TrafficSourceIconCache {
+    static let shared = TrafficSourceIconCache()
+    private var icons: [String: NSImage] = [:]
+
+    func icon(for path: String) -> NSImage {
+        if let icon = icons[path] { return icon }
+        let icon = NSWorkspace.shared.icon(forFile: path)
+        if icons.count >= 64 { icons.removeAll(keepingCapacity: true) }
+        icons[path] = icon
+        return icon
     }
 }
