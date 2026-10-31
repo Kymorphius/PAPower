@@ -20,9 +20,26 @@ enum MeasurementSource: String {
     case unavailable
 }
 
+struct ComponentTemperatures {
+    let cpuCelsius: Double?
+    let gpuCelsius: Double?
+    let storageCelsius: Double?
+
+    var hasAnyValue: Bool {
+        cpuCelsius != nil || gpuCelsius != nil || storageCelsius != nil
+    }
+
+    static let empty = ComponentTemperatures(
+        cpuCelsius: nil,
+        gpuCelsius: nil,
+        storageCelsius: nil
+    )
+}
+
 struct PowerSnapshot {
     let systemWatts: Double?
     let battery: BatterySnapshot?
+    let temperatures: ComponentTemperatures
     let sampledAt: Date
     let source: MeasurementSource
     let diagnostic: String?
@@ -41,6 +58,7 @@ struct PowerSnapshot {
     static let empty = PowerSnapshot(
         systemWatts: nil,
         battery: nil,
+        temperatures: .empty,
         sampledAt: .now,
         source: .unavailable,
         diagnostic: nil

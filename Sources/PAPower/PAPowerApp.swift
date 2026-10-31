@@ -10,6 +10,10 @@ struct PAPowerApp: App {
             TrafficProbeReporter.printAndExit()
         }
 
+        if CommandLine.arguments.contains("--temperature-probe") {
+            ProbeReporter.printTemperaturesAndExit()
+        }
+
         if CommandLine.arguments.contains("--activity-probe") {
             ProbeReporter.printActivityAndExit()
         }

@@ -1,18 +1,28 @@
 # PAPower
 
 PAPower 是一个原生 macOS 菜单栏功耗监控原型。它会把当前功耗直接显示成
-`12.4W` 这样的菜单栏文字，点击后可以查看短期趋势、高活跃应用、电池功率、电压、电流和温度。
+`12.4W` 这样的菜单栏文字，点击后可以查看短期趋势、高活跃应用、CPU／GPU／SSD／电池温度，
+以及电池功率、电压和电流。
 
 ## 数据含义
 
 - 菜单栏优先读取 AppleSMC 的 `PSTR`，表示 Mac 的总板级功耗（Total Board Power）。
 - 电池详情来自 IOKit / AppleSmartBattery，电池功率按 `电压 × 电流` 计算。
+- CPU、GPU 和 SSD 温度优先从 IOKit/HID 温区读取，并显示当前可识别温区中的最高有效值；
+  AppleSMC 传感器键作为兼容回退。不同芯片和 macOS 版本提供的温区可能不同，缺失时会显示 `—`。
 - 如果 `PSTR` 不可用且 Mac 正在使用电池，PAPower 会明确切换为“电池端估算值”。
 - `PSTR` 不是插座侧功率，不包含电源适配器的转换损耗。需要精确测量墙上取电时，应使用 USB-C 或插座功率计。
 - macOS 不提供可靠的逐应用瓦数。弹窗中的“高活跃应用”会合并同一应用的 Helper 进程，并按近期 CPU 活跃度提供排查线索；它不是功率分摊结果。
 
 所有功耗采样均在本机完成，不需要管理员权限，也不会上传数据。只有用户主动点击
 “检查 GitHub 更新”时，应用才会访问 GitHub Releases 查询最新版本。
+
+## Spotlight 索引开关
+
+面板中的“Spotlight 索引”开关用 `mdutil -a -i on|off` 打开或关闭所有卷的 Spotlight 索引，
+用来减少 `mds_stores` 在后台建索引的耗电。状态读取自 `mdutil -s /System/Volumes/Data`，
+不需要权限；切换时会弹出系统管理员密码框。关闭后 ⌘空格、Finder 和邮件搜索
+都无法再按内容找到新文件，重新打开后 macOS 会重建索引，期间会有一段较高的后台占用。
 
 ## 独立网络流量菜单栏
 
@@ -73,10 +83,17 @@ dist/PAPower.app/Contents/MacOS/PAPower --activity-probe
 dist/PAPower.app/Contents/MacOS/PAPower --traffic-probe
 ```
 
+读取原始温度传感器，便于核对新机型：
+
+```bash
+dist/PAPower.app/Contents/MacOS/PAPower --temperature-probe
+```
+
 ## 技术与分发边界
 
-菜单栏和电池状态使用 Apple 的公开 macOS 框架。`PSTR` 则来自未公开承诺稳定性的
-AppleSMC 传感器键；它在 Apple Silicon Mac 上很实用，但未来系统或不同机型可能改变。
+菜单栏和电池状态使用 Apple 的公开 macOS 框架。`PSTR` 功耗键以及 CPU／GPU／SSD 温区读取
+依赖未公开承诺稳定性的 AppleSMC 或 IOKit 接口；它们在 Apple Silicon Mac 上很实用，
+但未来系统或不同机型可能改变。
 因此当前版本更适合 Developer ID 直签分发，不应在未验证 App Sandbox 与审核政策前直接按
 Mac App Store 方案发布。
 

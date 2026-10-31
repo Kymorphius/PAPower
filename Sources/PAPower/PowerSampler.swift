@@ -1,11 +1,19 @@
 import Foundation
 
 final class PowerSampler {
-    private let smc = SMCClient()
+    private let smc: SMCClient
     private let batteryReader = BatteryReader()
+    private let temperatureReader: TemperatureSensorReader
+
+    init() {
+        let smc = SMCClient()
+        self.smc = smc
+        self.temperatureReader = TemperatureSensorReader(smc: smc)
+    }
 
     func capture() -> PowerSnapshot {
         let battery = batteryReader.read()
+        let temperatures = temperatureReader.capture()
         let rawSystemWatts = smc.readDouble("PSTR")
         let systemWatts = rawSystemWatts.flatMap { value -> Double? in
             guard value.isFinite, value >= 0, value < 2_000 else { return nil }
@@ -24,6 +32,7 @@ final class PowerSampler {
         return PowerSnapshot(
             systemWatts: systemWatts,
             battery: battery,
+            temperatures: temperatures,
             sampledAt: .now,
             source: source,
             diagnostic: systemWatts == nil

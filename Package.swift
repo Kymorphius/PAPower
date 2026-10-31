@@ -11,8 +11,17 @@ let package = Package(
         .executable(name: "PAPower", targets: ["PAPower"])
     ],
     targets: [
+        .target(
+            name: "PAPowerTemperatureBridge",
+            path: "Sources/PAPowerTemperatureBridge",
+            publicHeadersPath: "include",
+            linkerSettings: [
+                .linkedFramework("IOKit")
+            ]
+        ),
         .executableTarget(
             name: "PAPower",
+            dependencies: ["PAPowerTemperatureBridge"],
             linkerSettings: [
                 .linkedFramework("IOKit"),
                 .linkedFramework("ServiceManagement")

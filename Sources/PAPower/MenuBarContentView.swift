@@ -5,6 +5,7 @@ struct MenuBarContentView: View {
     @ObservedObject var monitor: PowerMonitor
     @StateObject private var launchAtLogin = LaunchAtLoginController()
     @StateObject private var updateChecker = GitHubUpdateChecker()
+    @StateObject private var spotlightIndexing = SpotlightIndexingController()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
@@ -21,6 +22,7 @@ struct MenuBarContentView: View {
         .frame(width: 330)
         .onAppear {
             launchAtLogin.refresh()
+            spotlightIndexing.refresh()
         }
     }
 
@@ -65,6 +67,35 @@ struct MenuBarContentView: View {
                     .font(.title3.weight(.medium))
                     .foregroundStyle(.secondary)
             }
+
+            HStack(spacing: 0) {
+                temperatureMetric(
+                    title: "CPU",
+                    value: monitor.snapshot.temperatures.cpuCelsius,
+                    warning: 90,
+                    critical: 105
+                )
+                temperatureMetric(
+                    title: "GPU",
+                    value: monitor.snapshot.temperatures.gpuCelsius,
+                    warning: 90,
+                    critical: 105
+                )
+                temperatureMetric(
+                    title: "SSD",
+                    value: monitor.snapshot.temperatures.storageCelsius,
+                    warning: 60,
+                    critical: 75
+                )
+                temperatureMetric(
+                    title: "电池",
+                    value: monitor.snapshot.battery?.temperatureCelsius,
+                    warning: 40,
+                    critical: 45
+                )
+            }
+            .padding(.vertical, 2)
+            .help("CPU、GPU 与 SSD 显示当前可识别温区中的最高值；不同芯片提供的温区可能不同。")
 
             HStack(spacing: 18) {
                 compactMetric(title: "均值", value: formattedWatts(monitor.averageWatts))
@@ -193,11 +224,6 @@ struct MenuBarContentView: View {
                     )
                 }
 
-                if let temperature = battery.temperatureCelsius {
-                    Text(String(format: "电池温度 %.1f ℃", temperature))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
             }
         }
     }
@@ -243,6 +269,8 @@ struct MenuBarContentView: View {
 
             Toggle("登录时自动启动", isOn: launchAtLoginBinding)
 
+            spotlightControl
+
             updateControl
 
             if let error = launchAtLogin.errorMessage {
@@ -265,6 +293,27 @@ struct MenuBarContentView: View {
             }
         }
         .font(.subheadline)
+    }
+
+    private var spotlightControl: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Toggle("Spotlight 索引", isOn: spotlightIndexingBinding)
+                    .disabled(spotlightIndexing.isEnabled == nil || spotlightIndexing.isBusy)
+                if spotlightIndexing.isBusy {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+            }
+            .help("关闭后 Spotlight 不再为文件建立索引，可减少 mds_stores 的后台耗电；⌘空格、Finder 与邮件搜索会受影响。切换需要管理员密码。")
+
+            if let error = spotlightIndexing.errorMessage {
+                Text(error)
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
     }
 
     @ViewBuilder
@@ -352,6 +401,13 @@ struct MenuBarContentView: View {
         )
     }
 
+    private var spotlightIndexingBinding: Binding<Bool> {
+        Binding(
+            get: { spotlightIndexing.isEnabled ?? false },
+            set: { spotlightIndexing.setEnabled($0) }
+        )
+    }
+
     private var primaryWattText: String {
         monitor.snapshot.displayedWatts.map {
             String(format: "%.*f", monitor.decimalPlaces, $0)
@@ -377,6 +433,39 @@ struct MenuBarContentView: View {
                 .monospacedDigit()
         }
         .font(.caption)
+    }
+
+    private func temperatureMetric(
+        title: String,
+        value: Double?,
+        warning: Double,
+        critical: Double
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(value.map { String(format: "%.0f°", $0) } ?? "—")
+                .font(.caption.monospacedDigit().weight(.medium))
+                .foregroundStyle(temperatureColor(value, warning: warning, critical: critical))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            value.map { "\(title) 温度 \(Int($0.rounded())) 摄氏度" }
+                ?? "\(title) 温度不可用"
+        )
+    }
+
+    private func temperatureColor(
+        _ value: Double?,
+        warning: Double,
+        critical: Double
+    ) -> Color {
+        guard let value else { return .secondary }
+        if value >= critical { return .red }
+        if value >= warning { return .orange }
+        return .primary
     }
 
     private func detailMetric(title: String, value: String, width: CGFloat) -> some View {
