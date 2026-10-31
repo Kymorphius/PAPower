@@ -6,10 +6,21 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
     private var trafficStatusBarController: TrafficStatusBarController?
+    /// 键盘动效在面板关闭后仍要运行，并在退出前写回用户亮度，因此由应用持有。
+    private var keyboardBacklight: KeyboardBacklightController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        statusBarController = StatusBarController(monitor: PowerMonitor())
+        let keyboardBacklight = KeyboardBacklightController()
+        self.keyboardBacklight = keyboardBacklight
+        statusBarController = StatusBarController(
+            monitor: PowerMonitor(),
+            keyboardBacklight: keyboardBacklight
+        )
         trafficStatusBarController = TrafficStatusBarController(monitor: TrafficMonitor())
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        keyboardBacklight?.prepareForTermination()
     }
 }
 
@@ -18,12 +29,14 @@ private final class StatusBarController: NSObject {
     private static let symbolWidth: CGFloat = 14
 
     private let monitor: PowerMonitor
+    private let keyboardBacklight: KeyboardBacklightController
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
     private var subscriptions = Set<AnyCancellable>()
 
-    init(monitor: PowerMonitor) {
+    init(monitor: PowerMonitor, keyboardBacklight: KeyboardBacklightController) {
         self.monitor = monitor
+        self.keyboardBacklight = keyboardBacklight
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -41,7 +54,7 @@ private final class StatusBarController: NSObject {
         popover.behavior = .transient
         popover.animates = true
         popover.contentViewController = NSHostingController(
-            rootView: MenuBarContentView(monitor: monitor)
+            rootView: MenuBarContentView(monitor: monitor, keyboardBacklight: keyboardBacklight)
         )
     }
 

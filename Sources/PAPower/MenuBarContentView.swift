@@ -6,24 +6,44 @@ struct MenuBarContentView: View {
     @StateObject private var launchAtLogin = LaunchAtLoginController()
     @StateObject private var updateChecker = GitHubUpdateChecker()
     @StateObject private var spotlightIndexing = SpotlightIndexingController()
+    @ObservedObject var keyboardBacklight: KeyboardBacklightController
+
+    /// 内容实际高度；超过屏幕可用高度时改为滚动显示。
+    @State private var contentHeight: CGFloat?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 13) {
-            header
-            powerCard
-            historyCard
-            activitySection
-            batterySection
-            Divider()
-            controls
-            accuracyNote
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 13) {
+                header
+                powerCard
+                historyCard
+                activitySection
+                batterySection
+                keyboardBacklightSection
+                Divider()
+                controls
+                accuracyNote
+            }
+            .padding(14)
+            .background {
+                GeometryReader { proxy in
+                    Color.clear.preference(key: ContentHeightKey.self, value: proxy.size.height)
+                }
+            }
         }
-        .padding(14)
-        .frame(width: 330)
+        .frame(width: 330, height: min(contentHeight ?? maxPanelHeight, maxPanelHeight))
+        .onPreferenceChange(ContentHeightKey.self) { contentHeight = $0 }
         .onAppear {
             launchAtLogin.refresh()
             spotlightIndexing.refresh()
+            keyboardBacklight.refresh()
         }
+    }
+
+    /// 弹窗最多占用屏幕可用高度，扣除菜单栏下方的箭头与边距。
+    private var maxPanelHeight: CGFloat {
+        let visibleHeight = NSScreen.main?.visibleFrame.height ?? 800
+        return max(visibleHeight - 40, 320)
     }
 
     private var header: some View {
@@ -228,6 +248,79 @@ struct MenuBarContentView: View {
         }
     }
 
+    @ViewBuilder
+    private var keyboardBacklightSection: some View {
+        if keyboardBacklight.isAvailable {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label("键盘背光", systemImage: "light.max")
+                        .font(.subheadline.weight(.medium))
+                    Spacer()
+                    Text(String(format: "%.0f%%", keyboardBacklight.brightness * 100))
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: 6) {
+                    Image(systemName: "light.min")
+                        .foregroundStyle(.secondary)
+                    Slider(value: keyboardBrightnessBinding, in: 0...1)
+                        .controlSize(.small)
+                        .accessibilityLabel("键盘亮度")
+                    Image(systemName: "light.max")
+                        .foregroundStyle(.secondary)
+                }
+                .font(.caption)
+
+                if keyboardBacklight.supportsEffects {
+                    HStack {
+                        Text("动效")
+                        Spacer()
+                        if keyboardBacklight.effect != .off {
+                            Picker("节奏", selection: keyboardEffectSpeedBinding) {
+                                ForEach(KeyboardBacklightEffectSpeed.allCases) { speed in
+                                    Text(speed.title).tag(speed)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.segmented)
+                            .frame(width: 96)
+                        }
+                        Picker("动效", selection: keyboardEffectBinding) {
+                            ForEach(KeyboardBacklightEffect.allCases) { effect in
+                                Text(effect.title).tag(effect)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .frame(width: 86)
+                    }
+                    .font(.caption)
+                    .help("亮度滑块决定动效最亮的程度。动效运行时暂停闲置熄灭，屏幕休眠、系统睡眠或合盖时自动暂停，关闭动效后恢复原亮度。")
+                }
+
+                Toggle("低光照下自动调节", isOn: keyboardAutoBrightnessBinding)
+                    .font(.caption)
+                    .help("开启后背光随环境光自动调亮或调暗，滑块设定的是基准亮度。")
+
+                HStack {
+                    Text("闲置后关闭背光")
+                    Spacer()
+                    Picker("闲置后关闭背光", selection: keyboardIdleDimBinding) {
+                        ForEach(keyboardIdleDimOptions, id: \.self) { seconds in
+                            Text(idleDimText(seconds)).tag(seconds)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(width: 86)
+                }
+                .font(.caption)
+            }
+            .help("与系统设置中的键盘亮度同步；背光越亮耗电越高。")
+        }
+    }
+
     private var controls: some View {
         VStack(spacing: 9) {
             HStack {
@@ -408,6 +501,56 @@ struct MenuBarContentView: View {
         )
     }
 
+    private var keyboardBrightnessBinding: Binding<Double> {
+        Binding(
+            get: { keyboardBacklight.brightness },
+            set: { keyboardBacklight.setBrightness($0) }
+        )
+    }
+
+    private var keyboardAutoBrightnessBinding: Binding<Bool> {
+        Binding(
+            get: { keyboardBacklight.isAutoBrightnessEnabled },
+            set: { keyboardBacklight.setAutoBrightnessEnabled($0) }
+        )
+    }
+
+    private var keyboardIdleDimBinding: Binding<Double> {
+        Binding(
+            get: { keyboardBacklight.idleDimSeconds },
+            set: { keyboardBacklight.setIdleDimSeconds($0) }
+        )
+    }
+
+    private var keyboardEffectBinding: Binding<KeyboardBacklightEffect> {
+        Binding(
+            get: { keyboardBacklight.effect },
+            set: { keyboardBacklight.setEffect($0) }
+        )
+    }
+
+    private var keyboardEffectSpeedBinding: Binding<KeyboardBacklightEffectSpeed> {
+        Binding(
+            get: { keyboardBacklight.effectSpeed },
+            set: { keyboardBacklight.setEffectSpeed($0) }
+        )
+    }
+
+    /// 与系统设置一致的选项；当前值若不在列表中也保留，避免 Picker 显示空白。
+    private var keyboardIdleDimOptions: [Double] {
+        let presets: [Double] = [5, 10, 30, 60, 300]
+        let current = keyboardBacklight.idleDimSeconds
+        return presets.contains(current) ? presets : (presets + [current]).sorted()
+    }
+
+    private func idleDimText(_ seconds: Double) -> String {
+        if seconds <= 0 { return "从不" }
+        if seconds >= 60, seconds.truncatingRemainder(dividingBy: 60) == 0 {
+            return "\(Int(seconds / 60)) 分钟"
+        }
+        return "\(Int(seconds)) 秒"
+    }
+
     private var primaryWattText: String {
         monitor.snapshot.displayedWatts.map {
             String(format: "%.*f", monitor.decimalPlaces, $0)
@@ -505,6 +648,14 @@ struct MenuBarContentView: View {
         guard let watts = battery.flowWatts else { return "—" }
         if abs(watts) < 0.05 { return "0.0 W" }
         return String(format: watts > 0 ? "+%.1f W" : "−%.1f W", abs(watts))
+    }
+}
+
+private struct ContentHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
