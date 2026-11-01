@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 /// 菜单栏面板。平时只显示功耗读数、走势、温度与电池；其余收成一行一句摘要，点按才在原处展开。
-/// 需要留意的状态以朱砂就地显示，并让页首震卦的阳爻转红、状态字由“静”变“感”。
+/// 需要留意的状态以朱砂就地显示，页首震卦的底爻随之转红。
 struct MenuBarContentView: View {
     enum Section: String, CaseIterable {
         case activity
@@ -42,14 +42,11 @@ struct MenuBarContentView: View {
                 Divider()
                     .padding(.top, 14)
                 sections
-                    .padding(.vertical, 6)
-                Divider()
-                footer
-                    .padding(.top, 10)
+                    .padding(.top, 6)
             }
             .padding(.horizontal, 18)
             .padding(.top, 16)
-            .padding(.bottom, 14)
+            .padding(.bottom, 20)
             .background {
                 GeometryReader { proxy in
                     Color.clear.preference(key: ContentHeightKey.self, value: proxy.size.height)
@@ -77,19 +74,14 @@ struct MenuBarContentView: View {
         return max(visibleHeight - 40, 320)
     }
 
-    // MARK: - 静：常驻内容
+    // MARK: - 常驻内容
 
     private var header: some View {
         HStack(spacing: 8) {
-            HStack(spacing: 8) {
-                ThunderTrigram(isStirred: isStirred)
-                Text(isStirred ? "感" : "静")
-                    .font(PanelTheme.song(15))
-                    .foregroundStyle(isStirred ? AnyShapeStyle(PanelTheme.cinnabar) : AnyShapeStyle(.secondary))
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(isStirred ? "有 \(stirredCount) 处需要留意" : "一切平静")
-            .help("静：一切如常；感：有需要留意的状态，已在原处以朱砂标出。")
+            ThunderTrigram(isStirred: isStirred)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(isStirred ? "有 \(stirredCount) 处需要留意" : "一切如常")
+                .help("底爻转为朱砂时，表示有需要留意的状态，已在原处标出。")
 
             Spacer()
 
@@ -183,7 +175,7 @@ struct MenuBarContentView: View {
         .help(batteryHelp(battery))
     }
 
-    // MARK: - 感而遂通：点按才展开的区块
+    // MARK: - 点按展开的区块
 
     private var sections: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -530,6 +522,15 @@ struct MenuBarContentView: View {
 
             updateControl
                 .padding(.top, 2)
+
+            HStack {
+                Spacer()
+                Button("退出 PAPower") {
+                    NSApp.terminate(nil)
+                }
+            }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
         }
         .font(.system(size: 13))
     }
@@ -595,24 +596,7 @@ struct MenuBarContentView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
-    private var footer: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text("寂然不动，感而遂通")
-                .font(PanelTheme.song(12))
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
-            Spacer()
-            Button("退出") {
-                NSApp.terminate(nil)
-            }
-            .buttonStyle(.plain)
-            .font(.system(size: 12))
-            .foregroundStyle(.secondary)
-            .help("退出 PAPower")
-        }
-    }
-
-    // MARK: - 感：需要留意的状态
+    // MARK: - 需要留意的状态
 
     private enum TemperatureLevel {
         case normal

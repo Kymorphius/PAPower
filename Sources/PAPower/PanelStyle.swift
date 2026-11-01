@@ -1,19 +1,14 @@
 import AppKit
 import SwiftUI
 
-/// 面板的视觉基调，取“寂然不动，感而遂通”：平时只有墨色；朱砂（符箓之色）只在“感”时出现，
-/// 即需要留意或正在生效的状态，且总在出事的地方就地出现，不另设提醒区。
+/// 面板的视觉基调：平时只有墨色；朱砂（符箓之色）只用于需要留意或正在生效的状态，
+/// 且总在相应的位置就地出现，不另设提醒区。
 enum PanelTheme {
     /// 朱砂。浅色 #B3361F（对白 6.1:1），深色 #F2735A（对 #1E1E1E 5.9:1），增强对比度时再加深／提亮。
     static let cinnabar = dynamic(light: 0xB3361F, dark: 0xF2735A, lightHighContrast: 0x8E2412, darkHighContrast: 0xFF8E78)
 
     /// 墨：控件的强调色（开关、滑块、主按钮），替代系统强调色，让平时的面板保持单色。
     static let ink = dynamic(light: 0x48484A, dark: 0x8E8E93, lightHighContrast: 0x1C1C1E, darkHighContrast: 0xC7C7CC)
-
-    /// 宋体只用于题记与状态字，正文和控件仍用系统字体。
-    static func song(_ size: CGFloat) -> Font {
-        .custom("Songti SC", size: size, relativeTo: .body)
-    }
 
     private static func dynamic(
         light: UInt32,

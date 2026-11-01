@@ -67,6 +67,7 @@ extension NSImage {
 }
 
 /// 面板页首的震卦：平时三爻皆为墨色；有需要留意的状态时，底下的阳爻转为朱砂。
+/// 无障碍标签由使用处按当前状态提供。
 struct ThunderTrigram: View {
     var isStirred: Bool
 
@@ -83,7 +84,6 @@ struct ThunderTrigram: View {
                 .foregroundStyle(isStirred ? AnyShapeStyle(PanelTheme.cinnabar) : AnyShapeStyle(.secondary))
         }
         .frame(width: metrics.width, height: metrics.height, alignment: .topLeading)
-        .accessibilityHidden(true)
     }
 
     private func bar(_ rect: CGRect) -> some View {
