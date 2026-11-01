@@ -5,8 +5,28 @@ PAPower 是一个原生 macOS 菜单栏功耗监控原型。它会把当前功�
 以及电池功率、电压和电流。
 
 <p align="center">
-  <img src="docs/panel.png" width="330" alt="PAPower 菜单栏面板">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/panel-dark.png">
+    <img src="docs/panel-light.png" width="300" alt="PAPower 面板平时的样子：只有功耗读数、走势、温度与电池，其余收成一行一句摘要">
+  </picture>
+  &nbsp;
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/panel-expanded-dark.png">
+    <img src="docs/panel-expanded-light.png" width="300" alt="展开键盘背光；有需要留意的状态（如保持唤醒生效、某应用占用过高）时，以朱砂就地标出，页首转为“感”">
+  </picture>
 </p>
+
+## 面板
+
+面板取“寂然不动，感而遂通”之意。菜单栏图标是震卦 ☳（二阴在上，一阳在下），与面板页首同形，
+读不到功耗时变淡。
+
+- **寂**：平时只显示功耗读数、走势、温度与电池，全是墨色；活跃应用、键盘背光、睡眠与设置各收成一行，
+  右侧一句摘要。
+- **感**：只有需要留意时才出现朱砂，而且就出现在出事的地方——温度偏热、电量低、功耗陡升、
+  某个应用占用过高、保持唤醒或合盖不睡眠正在生效、发现新版本。页首的震卦 ☳ 底爻随之转红，
+  状态字由“静”变“感”。
+- **通**：点按某一行，才在原处展开它的全部设置；每次打开面板都从收起的静止状态开始。
 
 ## 数据含义
 
@@ -97,10 +117,12 @@ dist/PAPower.app/Contents/MacOS/PAPower --activity-probe
 dist/PAPower.app/Contents/MacOS/PAPower --temperature-probe
 ```
 
-用真实数据生成完整展开的面板截图（约 8 秒，README 中的截图即由此生成）：
+用真实数据生成面板截图（约 8 秒，README 中的截图即由此生成）。可指定深浅色，以及展开哪个区块
+（`activity`、`keyboard`、`sleep`、`settings`）：
 
 ```bash
-dist/PAPower.app/Contents/MacOS/PAPower --panel-snapshot docs/panel.png
+dist/PAPower.app/Contents/MacOS/PAPower --panel-snapshot docs/panel-dark.png --appearance dark
+dist/PAPower.app/Contents/MacOS/PAPower --panel-snapshot docs/panel-expanded-light.png --appearance light --open keyboard
 ```
 
 ## 技术与分发边界

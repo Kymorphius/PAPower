@@ -52,7 +52,7 @@ final class PowerMonitor: ObservableObject {
         let integerDigits = max(1, String(Int(safeWatts)).count)
         let rawNumber = String(format: "%.*f", decimalPlaces, safeWatts)
 
-        // The two integer slots keep the lightning and W anchored while the
+        // The two integer slots keep the trigram and W anchored while the
         // usual sub-100 W reading changes between one and two integer digits.
         // Compact mode ends directly in W; spacious mode adds one figure-space
         // after the symbol and a normal space before W.
@@ -61,20 +61,15 @@ final class PowerMonitor: ObservableObject {
         return layoutSpacing + leading + rawNumber + unitSpacing + "W"
     }
 
-    var menuBarSymbol: String {
-        switch snapshot.source {
-        case .smcTotal:
-            return "bolt.fill"
-        case .batteryEstimate:
-            return "battery.50percent"
-        case .unavailable:
-            return "bolt.slash"
-        }
+    /// 读不到功耗时，菜单栏的震卦变淡。
+    var hasReading: Bool {
+        snapshot.source != .unavailable
     }
 
     var accessibilitySummary: String {
         guard let watts = snapshot.displayedWatts else { return "PAPower，暂时无法读取功耗" }
-        return String(format: "PAPower，当前功耗 %.1f 瓦", watts)
+        let estimate = snapshot.source == .batteryEstimate ? "（电池端估算）" : ""
+        return String(format: "PAPower，当前功耗 %.1f 瓦", watts) + estimate
     }
 
     var averageWatts: Double? {

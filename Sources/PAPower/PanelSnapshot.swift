@@ -1,13 +1,18 @@
 import AppKit
 import SwiftUI
 
-/// `--panel-snapshot <路径>`：采样几秒拿到真实数据后，把完整展开的面板渲染成 PNG 并退出，用于 README 截图。
+/// `--panel-snapshot <路径> [--appearance light|dark] [--open activity|keyboard|sleep|settings]`：
+/// 采样几秒拿到真实数据后，把完整展开的面板渲染成 PNG 并退出，用于 README 截图与检查各个状态。
 /// 不创建菜单栏项，键盘背光只读不写，不影响正在运行的 PAPower。
 @MainActor
 enum PanelSnapshot {
     static var outputPath: String? {
+        argument(after: "--panel-snapshot")
+    }
+
+    private static func argument(after flag: String) -> String? {
         let arguments = CommandLine.arguments
-        guard let index = arguments.firstIndex(of: "--panel-snapshot"),
+        guard let index = arguments.firstIndex(of: flag),
               arguments.indices.contains(index + 1) else {
             return nil
         }
@@ -23,11 +28,18 @@ enum PanelSnapshot {
         keyboardBacklight: KeyboardBacklightController,
         sleepSettings: SleepSettingsController
     ) {
+        switch argument(after: "--appearance") {
+        case "light": NSApp.appearance = NSAppearance(named: .aqua)
+        case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
+        default: break
+        }
+
         let view = MenuBarContentView(
             monitor: monitor,
             keyboardBacklight: keyboardBacklight,
             sleepSettings: sleepSettings,
-            heightLimit: 10_000
+            heightLimit: 10_000,
+            initialSection: argument(after: "--open").flatMap(MenuBarContentView.Section.init(rawValue:))
         )
         .background(Color(nsColor: .windowBackgroundColor))
 

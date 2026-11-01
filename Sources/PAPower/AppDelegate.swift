@@ -41,7 +41,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 @MainActor
 private final class StatusBarController: NSObject {
-    private static let symbolWidth: CGFloat = 14
+    /// 菜单栏图标：震卦模板图，读不到功耗时变淡。
+    private static let trigram = NSImage.thunderTrigram()
+    private static let dimmedTrigram = NSImage.thunderTrigram(alpha: 0.35)
 
     private let monitor: PowerMonitor
     private let keyboardBacklight: KeyboardBacklightController
@@ -109,18 +111,7 @@ private final class StatusBarController: NSObject {
     private func updateButton() {
         guard let button = statusItem.button else { return }
 
-        let symbolConfiguration = NSImage.SymbolConfiguration(
-            pointSize: 12,
-            weight: .semibold
-        )
-        let image = NSImage(
-            systemSymbolName: monitor.menuBarSymbol,
-            accessibilityDescription: nil
-        )?.withSymbolConfiguration(symbolConfiguration)
-        image?.isTemplate = true
-        image?.size = NSSize(width: Self.symbolWidth, height: Self.symbolWidth)
-
-        button.image = image
+        button.image = monitor.hasReading ? Self.trigram : Self.dimmedTrigram
         button.attributedTitle = statusTitle(monitor.menuBarText)
         button.toolTip = monitor.accessibilitySummary
         button.setAccessibilityLabel(monitor.accessibilitySummary)
