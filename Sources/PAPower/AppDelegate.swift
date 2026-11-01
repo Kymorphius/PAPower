@@ -7,13 +7,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
     /// 键盘动效在面板关闭后仍要运行，并在退出前写回用户亮度，因此由应用持有。
     private var keyboardBacklight: KeyboardBacklightController?
+    /// 保持唤醒的电源断言要在面板关闭后继续生效，同样由应用持有。
+    private var sleepSettings: SleepSettingsController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let keyboardBacklight = KeyboardBacklightController()
         self.keyboardBacklight = keyboardBacklight
+        let sleepSettings = SleepSettingsController()
+        self.sleepSettings = sleepSettings
         statusBarController = StatusBarController(
             monitor: PowerMonitor(),
-            keyboardBacklight: keyboardBacklight
+            keyboardBacklight: keyboardBacklight,
+            sleepSettings: sleepSettings
         )
     }
 
@@ -28,13 +33,19 @@ private final class StatusBarController: NSObject {
 
     private let monitor: PowerMonitor
     private let keyboardBacklight: KeyboardBacklightController
+    private let sleepSettings: SleepSettingsController
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
     private var subscriptions = Set<AnyCancellable>()
 
-    init(monitor: PowerMonitor, keyboardBacklight: KeyboardBacklightController) {
+    init(
+        monitor: PowerMonitor,
+        keyboardBacklight: KeyboardBacklightController,
+        sleepSettings: SleepSettingsController
+    ) {
         self.monitor = monitor
         self.keyboardBacklight = keyboardBacklight
+        self.sleepSettings = sleepSettings
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -52,7 +63,11 @@ private final class StatusBarController: NSObject {
         popover.behavior = .transient
         popover.animates = true
         popover.contentViewController = NSHostingController(
-            rootView: MenuBarContentView(monitor: monitor, keyboardBacklight: keyboardBacklight)
+            rootView: MenuBarContentView(
+                monitor: monitor,
+                keyboardBacklight: keyboardBacklight,
+                sleepSettings: sleepSettings
+            )
         )
     }
 

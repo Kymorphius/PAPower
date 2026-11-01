@@ -7,6 +7,7 @@ struct MenuBarContentView: View {
     @StateObject private var updateChecker = GitHubUpdateChecker()
     @StateObject private var spotlightIndexing = SpotlightIndexingController()
     @ObservedObject var keyboardBacklight: KeyboardBacklightController
+    @ObservedObject var sleepSettings: SleepSettingsController
 
     /// 内容实际高度；超过屏幕可用高度时改为滚动显示。
     @State private var contentHeight: CGFloat?
@@ -20,6 +21,7 @@ struct MenuBarContentView: View {
                 activitySection
                 batterySection
                 keyboardBacklightSection
+                sleepSection
                 Divider()
                 controls
                 accuracyNote
@@ -37,6 +39,7 @@ struct MenuBarContentView: View {
             launchAtLogin.refresh()
             spotlightIndexing.refresh()
             keyboardBacklight.refresh()
+            sleepSettings.refresh()
         }
     }
 
@@ -321,6 +324,153 @@ struct MenuBarContentView: View {
         }
     }
 
+    private var sleepSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label("睡眠", systemImage: "moon.zzz")
+                    .font(.subheadline.weight(.medium))
+                Spacer()
+                if sleepSettings.isBusy {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+            }
+
+            HStack {
+                Text("保持唤醒")
+                Spacer()
+                if let until = sleepSettings.keepAwakeUntil {
+                    (Text("至 ") + Text(until, style: .time))
+                        .foregroundStyle(.secondary)
+                }
+                Picker("保持唤醒", selection: keepAwakeBinding) {
+                    ForEach(SleepSettingsController.KeepAwake.allCases) { option in
+                        Text(option.title).tag(option)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(width: 86)
+            }
+            .font(.caption)
+            .help("阻止系统闲置睡眠，退出 PAPower 后自动失效。合盖仍会睡眠，需要时配合“合盖不睡眠”。")
+
+            Toggle("保持唤醒时屏幕常亮", isOn: keepsDisplayAwakeBinding)
+                .font(.caption)
+
+            Toggle("合盖不睡眠", isOn: sleepDisabledBinding)
+                .font(.caption)
+                .disabled(sleepSettings.isSleepDisabled == nil || sleepSettings.isBusy)
+                .help("系统级设置（pmset disablesleep）：合盖和闲置都不会睡眠，退出 PAPower 后仍然有效。切换需要管理员密码。")
+
+            if sleepSettings.isSleepDisabled == true {
+                Text("合盖后不会睡眠，放进包里前请关闭，以免发热耗电。")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let draft = sleepSettings.draft {
+                sleepTimers(draft)
+                sleepBackgroundToggles(draft)
+
+                if sleepSettings.hasPendingChanges {
+                    HStack {
+                        Button("还原") {
+                            sleepSettings.discardChanges()
+                        }
+                        Spacer()
+                        Button("应用更改") {
+                            sleepSettings.applyChanges()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(sleepSettings.isBusy)
+                    }
+                    .controlSize(.small)
+                    .help("自动睡眠时间与后台活动通过 pmset 写入系统，需要管理员密码。")
+                }
+            }
+
+            if let error = sleepSettings.errorMessage {
+                Text(error)
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private func sleepTimers(_ draft: SleepSettings) -> some View {
+        Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 4) {
+            GridRow {
+                Text("")
+                if draft.hasBattery {
+                    Text("电池")
+                }
+                if draft.hasAC {
+                    Text("电源")
+                }
+            }
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+
+            GridRow {
+                Text("自动睡眠")
+                if draft.hasBattery {
+                    sleepMinutesPicker("电池自动睡眠", \.batterySleep)
+                }
+                if draft.hasAC {
+                    sleepMinutesPicker("电源自动睡眠", \.acSleep)
+                }
+            }
+
+            GridRow {
+                Text("关闭显示器")
+                if draft.hasBattery {
+                    sleepMinutesPicker("电池关闭显示器", \.batteryDisplaySleep)
+                }
+                if draft.hasAC {
+                    sleepMinutesPicker("电源关闭显示器", \.acDisplaySleep)
+                }
+            }
+        }
+        .font(.caption)
+        .help("闲置多久后系统睡眠或关闭显示器；“从不”对应 pmset 的 0。")
+    }
+
+    @ViewBuilder
+    private func sleepBackgroundToggles(_ draft: SleepSettings) -> some View {
+        if draft.powerNap != nil {
+            Toggle("Power Nap", isOn: sleepFlagBinding(\.powerNap))
+                .font(.caption)
+                .help("睡眠时定期唤醒以收邮件、同步 iCloud 和备份；关闭可减少睡眠耗电。")
+        }
+        if draft.wakeForNetwork != nil {
+            Toggle("网络唤醒", isOn: sleepFlagBinding(\.wakeForNetwork))
+                .font(.caption)
+                .help("允许通过网络访问（如共享、远程登录）唤醒 Mac。")
+        }
+        if draft.tcpKeepAlive != nil {
+            Toggle("睡眠时保持网络连接", isOn: sleepFlagBinding(\.tcpKeepAlive))
+                .font(.caption)
+                .help("睡眠时维持网络连接，供“查找”和推送等服务使用；关闭可减少睡眠耗电。")
+        }
+    }
+
+    private func sleepMinutesPicker(
+        _ title: String,
+        _ keyPath: WritableKeyPath<SleepSettings, Int?>
+    ) -> some View {
+        Picker(title, selection: sleepMinutesBinding(keyPath)) {
+            ForEach(sleepMinuteOptions(including: sleepSettings.applied?[keyPath: keyPath]), id: \.self) { minutes in
+                Text(sleepMinutesText(minutes)).tag(minutes)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.menu)
+        .frame(width: 90)
+    }
+
     private var controls: some View {
         VStack(spacing: 9) {
             HStack {
@@ -549,6 +699,57 @@ struct MenuBarContentView: View {
             return "\(Int(seconds / 60)) 分钟"
         }
         return "\(Int(seconds)) 秒"
+    }
+
+    private var keepAwakeBinding: Binding<SleepSettingsController.KeepAwake> {
+        Binding(
+            get: { sleepSettings.keepAwake },
+            set: { sleepSettings.setKeepAwake($0) }
+        )
+    }
+
+    private var keepsDisplayAwakeBinding: Binding<Bool> {
+        Binding(
+            get: { sleepSettings.keepsDisplayAwake },
+            set: { sleepSettings.setKeepsDisplayAwake($0) }
+        )
+    }
+
+    private var sleepDisabledBinding: Binding<Bool> {
+        Binding(
+            get: { sleepSettings.isSleepDisabled ?? false },
+            set: { sleepSettings.setSleepDisabled($0) }
+        )
+    }
+
+    private func sleepMinutesBinding(_ keyPath: WritableKeyPath<SleepSettings, Int?>) -> Binding<Int> {
+        Binding(
+            get: { sleepSettings.draft?[keyPath: keyPath] ?? 0 },
+            set: { minutes in sleepSettings.updateDraft { $0[keyPath: keyPath] = minutes } }
+        )
+    }
+
+    private func sleepFlagBinding(_ keyPath: WritableKeyPath<SleepSettings, Bool?>) -> Binding<Bool> {
+        Binding(
+            get: { sleepSettings.draft?[keyPath: keyPath] ?? false },
+            set: { isOn in sleepSettings.updateDraft { $0[keyPath: keyPath] = isOn } }
+        )
+    }
+
+    /// 常用时长；系统当前值若不在列表中也保留，避免 Picker 显示空白。“从不”排在最后。
+    private func sleepMinuteOptions(including current: Int?) -> [Int] {
+        var options = [1, 2, 5, 10, 15, 30, 60, 180]
+        if let current, current > 0, !options.contains(current) {
+            options.append(current)
+            options.sort()
+        }
+        return options + [0]
+    }
+
+    private func sleepMinutesText(_ minutes: Int) -> String {
+        if minutes == 0 { return "从不" }
+        if minutes >= 60, minutes % 60 == 0 { return "\(minutes / 60) 小时" }
+        return "\(minutes) 分钟"
     }
 
     private var primaryWattText: String {
