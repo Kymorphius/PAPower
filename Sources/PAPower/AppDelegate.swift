@@ -5,7 +5,6 @@ import SwiftUI
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
-    private var trafficStatusBarController: TrafficStatusBarController?
     /// 键盘动效在面板关闭后仍要运行，并在退出前写回用户亮度，因此由应用持有。
     private var keyboardBacklight: KeyboardBacklightController?
 
@@ -16,7 +15,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             monitor: PowerMonitor(),
             keyboardBacklight: keyboardBacklight
         )
-        trafficStatusBarController = TrafficStatusBarController(monitor: TrafficMonitor())
     }
 
     func applicationWillTerminate(_ notification: Notification) {

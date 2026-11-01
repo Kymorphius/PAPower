@@ -6,10 +6,6 @@ struct PAPowerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     init() {
-        if CommandLine.arguments.contains("--traffic-probe") {
-            TrafficProbeReporter.printAndExit()
-        }
-
         if CommandLine.arguments.contains("--temperature-probe") {
             ProbeReporter.printTemperaturesAndExit()
         }
