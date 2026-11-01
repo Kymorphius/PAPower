@@ -8,6 +8,8 @@ struct MenuBarContentView: View {
     @StateObject private var spotlightIndexing = SpotlightIndexingController()
     @ObservedObject var keyboardBacklight: KeyboardBacklightController
     @ObservedObject var sleepSettings: SleepSettingsController
+    /// 面板高度上限；为 nil 时按屏幕可用高度。生成 README 截图时放宽，以完整展开内容。
+    var heightLimit: CGFloat?
 
     /// 内容实际高度；超过屏幕可用高度时改为滚动显示。
     @State private var contentHeight: CGFloat?
@@ -45,6 +47,7 @@ struct MenuBarContentView: View {
 
     /// 弹窗最多占用屏幕可用高度，扣除菜单栏下方的箭头与边距。
     private var maxPanelHeight: CGFloat {
+        if let heightLimit { return heightLimit }
         let visibleHeight = NSScreen.main?.visibleFrame.height ?? 800
         return max(visibleHeight - 40, 320)
     }

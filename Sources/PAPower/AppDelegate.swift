@@ -11,10 +11,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var sleepSettings: SleepSettingsController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if let path = PanelSnapshot.outputPath {
+            PanelSnapshot.run(
+                to: path,
+                monitor: PowerMonitor(),
+                keyboardBacklight: KeyboardBacklightController(runsEffects: false),
+                sleepSettings: SleepSettingsController()
+            )
+            return
+        }
+
+        LaunchAtLoginController.applyDefaultOnFirstLaunch()
         let keyboardBacklight = KeyboardBacklightController()
         self.keyboardBacklight = keyboardBacklight
         let sleepSettings = SleepSettingsController()
         self.sleepSettings = sleepSettings
+
         statusBarController = StatusBarController(
             monitor: PowerMonitor(),
             keyboardBacklight: keyboardBacklight,

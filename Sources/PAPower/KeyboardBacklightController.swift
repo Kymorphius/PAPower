@@ -177,11 +177,14 @@ final class KeyboardBacklightController: ObservableObject {
     private var effectBrightness: Double?
     private var pauseReasons: Set<PauseReason> = []
     private var observers: [NSObjectProtocol] = []
+    private let runsEffects: Bool
 
-    init() {
+    /// runsEffects 为 false 时（面板截图）只读不写：不启动动效，也不接管运行中实例的待恢复亮度。
+    init(runsEffects: Bool = true) {
         let defaults = UserDefaults.standard
+        // 未设置过时默认呼吸。
         effect = defaults.string(forKey: DefaultsKey.effect)
-            .flatMap(KeyboardBacklightEffect.init(rawValue:)) ?? .off
+            .flatMap(KeyboardBacklightEffect.init(rawValue:)) ?? .breathe
         effectSpeed = defaults.string(forKey: DefaultsKey.effectSpeed)
             .flatMap(KeyboardBacklightEffectSpeed.init(rawValue:)) ?? .normal
         rootDomain = IOServiceGetMatchingService(
@@ -189,6 +192,11 @@ final class KeyboardBacklightController: ObservableObject {
             IOServiceMatching("IOPMrootDomain")
         )
         supportsEffects = client?.supportsEffects ?? false
+        self.runsEffects = runsEffects
+        guard runsEffects else {
+            refresh()
+            return
+        }
         // 上次动效没有正常收尾时，沿用当时记下的用户亮度，而不是读取停在某一帧的当前值。
         effectBrightness = defaults.object(forKey: DefaultsKey.pendingRestore) as? Double
 
@@ -221,6 +229,16 @@ final class KeyboardBacklightController: ObservableObject {
         if let effectBrightness {
             brightness = effectBrightness
             return
+        }
+        // 只读实例（面板截图）旁边可能有正在运行的动效，读数只是某一帧，改显示用户设定的亮度。
+        if !runsEffects, effect != .off {
+            let defaults = UserDefaults.standard
+            let saved = defaults.object(forKey: DefaultsKey.pendingRestore) as? Double
+                ?? defaults.double(forKey: DefaultsKey.lastLitBrightness)
+            if saved > 0 {
+                brightness = saved
+                return
+            }
         }
         brightness = state.brightness
         isSuppressed = state.isSuppressed

@@ -4,6 +4,10 @@ PAPower 是一个原生 macOS 菜单栏功耗监控原型。它会把当前功�
 `12.4W` 这样的菜单栏文字，点击后可以查看短期趋势、高活跃应用、CPU／GPU／SSD／电池温度，
 以及电池功率、电压和电流。
 
+<p align="center">
+  <img src="docs/panel.png" width="330" alt="PAPower 菜单栏面板">
+</p>
+
 ## 数据含义
 
 - 菜单栏优先读取 AppleSMC 的 `PSTR`，表示 Mac 的总板级功耗（Total Board Power）。
@@ -34,7 +38,7 @@ PAPower 是一个原生 macOS 菜单栏功耗监控原型。它会把当前功�
 因此面板会先短暂关闭自动调节、设好亮度，约 0.5 秒后再恢复自动调节。
 显示的百分比是当前生效亮度，背光关闭或闲置熄灭时显示为 0%。
 
-“动效”提供呼吸、心跳、闪烁和烛光四种效果，可选慢／中／快三档节奏，亮度滑块决定动效最亮的程度。
+“动效”默认开启呼吸，提供呼吸、心跳、闪烁和烛光四种效果，可选慢／中／快三档节奏，亮度滑块决定动效最亮的程度。
 每个关键帧只发一次带渐变时长的亮度请求，由系统完成平滑过渡；实测呼吸动效让 PAPower 与
 `corebrightnessd` 各多占约 0.1% CPU。动效运行时会暂停闲置熄灭，屏幕休眠、系统睡眠、切换用户或合盖时
 自动暂停；关闭动效或退出应用时写回原亮度。动效选择会被记住，下次启动继续；若应用异常退出，
@@ -72,7 +76,8 @@ PAPower 是一个原生 macOS 菜单栏功耗监控原型。它会把当前功�
 open dist/PAPower.app
 ```
 
-构建产物位于 `dist/PAPower.app`。要长期使用，可以把它拖到“应用程序”文件夹，再在弹出面板里开启“登录时自动启动”。
+构建产物位于 `dist/PAPower.app`。要长期使用，可以把它拖到“应用程序”文件夹。首次启动时会默认开启“登录时自动启动”，
+之后可在弹出面板里关闭，关闭后不会再被自动打开。
 
 读取一次数据并输出 JSON（便于调试）：
 
@@ -90,6 +95,12 @@ dist/PAPower.app/Contents/MacOS/PAPower --activity-probe
 
 ```bash
 dist/PAPower.app/Contents/MacOS/PAPower --temperature-probe
+```
+
+用真实数据生成完整展开的面板截图（约 8 秒，README 中的截图即由此生成）：
+
+```bash
+dist/PAPower.app/Contents/MacOS/PAPower --panel-snapshot docs/panel.png
 ```
 
 ## 技术与分发边界
